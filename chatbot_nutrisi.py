@@ -1,6 +1,6 @@
 import google.generativeai as genai
 import logging
-from typing import Optional
+from typing import Tuple
 from datetime import datetime
 from config import Config
 
@@ -52,7 +52,7 @@ Jika pertanyaan di luar topik nutrisi, tetap membantu tetapi arahkan ke topik nu
             logger.error(f"❌ Error saat inisialisasi chatbot: {str(e)}")
             raise
     
-    def tanya(self, pertanyaan: str) -> tuple[str, bool]:
+    def tanya(self, pertanyaan: str) -> Tuple[str, bool]:
         """
         Mengirim pertanyaan ke model Gemini dan mengembalikan jawaban.
         
@@ -60,7 +60,7 @@ Jika pertanyaan di luar topik nutrisi, tetap membantu tetapi arahkan ke topik nu
             pertanyaan (str): Pertanyaan dari pengguna
         
         Returns:
-            tuple[str, bool]: (jawaban, is_success)
+            Tuple[str, bool]: (jawaban, is_success)
                 - jawaban: Teks respons dari AI atau pesan error
                 - is_success: True jika berhasil, False jika ada error
         """
@@ -97,32 +97,24 @@ Jika pertanyaan di luar topik nutrisi, tetap membantu tetapi arahkan ke topik nu
             logger.info(f"✅ Jawaban berhasil dihasilkan ({len(jawaban)} karakter)")
             return jawaban, True
         
-        except google.generativeai.types.BlockedPromptException:
-            msg = "❌ Pertanyaan Anda tidak bisa diproses karena melanggar kebijakan keamanan."
-            logger.error(msg)
-            return msg, False
-        
-        except TimeoutError:
-            msg = f"⏱️ Waktu tunggu habis ({Config.CHAT_TIMEOUT}s). Silakan coba lagi."
-            logger.error(msg)
-            return msg, False
-        
-        except google.generativeai.types.APIConnectionError as e:
-            msg = f"🌐 Error koneksi API: Periksa internet Anda dan coba lagi. ({str(e)[:50]})"
-            logger.error(f"API Connection Error: {str(e)}")
-            return msg, False
-        
-        except google.generativeai.types.APIStatusError as e:
-            if "quota" in str(e).lower():
-                msg = "❌ Kuota API Google Gemini habis. Silakan coba lagi nanti."
-            else:
-                msg = f"❌ Error API: {str(e)[:100]}"
-            logger.error(f"API Status Error: {str(e)}")
-            return msg, False
-        
         except Exception as e:
-            msg = f"❌ Error tidak terduga: {str(e)[:100]}"
-            logger.error(f"Unexpected Error: {type(e).__name__}: {str(e)}")
+            error_str = str(e).lower()
+            
+            # Handle berbagai tipe error dengan pesan yang spesifik
+            if "blocked" in error_str or "safety" in error_str:
+                msg = "❌ Pertanyaan Anda tidak bisa diproses karena melanggar kebijakan keamanan."
+            elif "timeout" in error_str or "deadline" in error_str:
+                msg = f"⏱️ Waktu tunggu habis ({Config.CHAT_TIMEOUT}s). Silakan coba lagi."
+            elif "connection" in error_str or "network" in error_str:
+                msg = f"🌐 Error koneksi API: Periksa internet Anda dan coba lagi."
+            elif "quota" in error_str or "resource_exhausted" in error_str:
+                msg = "❌ Kuota API Google Gemini habis. Silakan coba lagi nanti."
+            elif "authentication" in error_str or "invalid_api_key" in error_str:
+                msg = "❌ Error autentikasi: API Key tidak valid atau sudah kedaluwarsa."
+            else:
+                msg = f"❌ Error: {str(e)[:100]}"
+            
+            logger.error(f"Error saat memproses pertanyaan: {type(e).__name__}: {str(e)}")
             return msg, False
     
     @staticmethod
