@@ -1,4 +1,7 @@
-streamlit
-google-generativeai
-python-dotenv
+# Core Dependencies
+streamlit==1.28.1
+google-generativeai==0.3.0
+python-dotenv==1.0.0
 
+# Additional utilities for enhanced features
+python-dateutil==2.8.2
